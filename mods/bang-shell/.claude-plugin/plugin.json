@@ -1,0 +1,8 @@
+{
+  "name": "bang-shell",
+  "version": "0.1.0",
+  "description": "Run '!cmd' prompts in the user's shell (Bash-tool environment) and hand the output to Claude, like the TUI's ! mode.",
+  "author": { "name": "WDAFNMS" },
+  "license": "MIT",
+  "repository": "https://github.com/WDAFNMS/claude-bang-shell"
+}

@@ -1,0 +1,7 @@
+{
+  "name": "claude-bang-shell",
+  "owner": { "name": "WDAFNMS" },
+  "plugins": [
+    { "name": "bang-shell", "source": "./mods/bang-shell", "description": "Run !commands typed in SDK-hosted chats (Orca etc.) in your shell and let Claude analyse the output, like the TUI's ! mode." }
+  ]
+}
