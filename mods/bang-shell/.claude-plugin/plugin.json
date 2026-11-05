@@ -1,6 +1,6 @@
 {
   "name": "bang-shell",
-  "version": "0.3.0",
+  "version": "0.4.0",
   "description": "TUI-equivalent '!' shell mode for SDK-hosted chats: runs '!cmd' through Claude Code's own Bash tool (no approval, like the TUI) and lets Claude answer.",
   "author": {
     "name": "WDAFNMS"

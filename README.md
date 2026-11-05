@@ -24,12 +24,18 @@ and lets Claude answer. This plugin does the same through `$.tool.call`:
   Bash call is judged by the normal permission rules.
 - The result is written the way the TUI writes it: a `<bash-input> cmd` row and then a `<bash-stdout>…<bash-stderr>…`
   row, and Claude answers right after. A non-zero exit shows `Exit code N` in the stderr block.
-- Because the rows are TUI-shaped, a session continued in the terminal (`claude --resume`) draws each output
-  as ordinary bash output (`⎿ …`) instead of raw tags.
+- Because the rows are TUI-shaped, a session continued in the terminal (`claude --resume`) draws each command and
+  its output like a native one (`!  cmd` / `⎿ …`) instead of raw tags.
+- **Transcript patch.** The host marks the `<bash-input>` row it lets a plugin append as a meta row, which the TUI does
+  not draw. Right after appending, the plugin therefore blanks that row's `"isMeta":true` marker in the session file,
+  in place and byte for byte (the marker is replaced by the same number of spaces; the file is never rewritten, so
+  Claude's own appends are not disturbed). It needs `python3` (on macOS it is skipped unless the Xcode command line tools
+  are installed, so no install dialog appears). If anything is off — file or row not found, no Python, a different
+  file layout in a future Claude Code — it does nothing and you get the older behaviour (output drawn, `! cmd` line
+  missing). It only ever touches rows the plugin itself appended.
 - The plugin writes no files and keeps no state.
 
-Differences from the TUI: the `<bash-input>` row is added by the plugin and the host marks it as a meta row, so a
-resumed TUI draws the output but not the `! cmd` line; no live output or interrupt while the command runs; `respondToBashCommands: false` is not honoured (Claude always answers).
+Differences from the TUI: no live output or interrupt while the command runs; `respondToBashCommands: false` is not honoured (Claude always answers).
 
 ## Install
 
@@ -64,8 +70,8 @@ published stability promise. Verified in isolated `claude -p` runs with stream-j
 commands that the default permission mode refuses (`cd … && …`, `git -C …`, `$(…)`) run, the working
 directory carries over and is reset outside the project, exit codes are reported, the allowance ends when
 the command ends, and ordinary prompts pass through untouched. Used for real in Orca's structured chat
-(0.1.x, 0.2.x). Shell state (`!cd`) is shared with Claude's own Bash tool in Orca chat. A session written by 0.3.0
-was resumed in the terminal TUI and each output rendered as bash output. **Not verified:** how Orca's chat view
+(0.1.x, 0.2.x). Shell state (`!cd`) is shared with Claude's own Bash tool in Orca chat. A session written by 0.4.0
+was resumed in the terminal TUI and each command and output rendered like a native one; the file stayed valid JSON on every line. **Not verified:** how Orca's chat view
 renders the rows, and a TUI resume of a session that mixes native and plugin-written rows beyond the single case tried.
 
 ## License

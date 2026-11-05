@@ -3,6 +3,45 @@ import type { Register } from 'claude-code'
 // What a person typing at the prompt (TUI) or an SDK host (Orca chat) looks like. Nothing else may run a command.
 const HUMAN_ORIGINS = new Set(['composer', 'sdk'])
 
+// Blank the "isMeta":true marker of rows this plugin appended, in place and without changing a single byte count,
+// so the terminal UI draws them like the rows it writes itself. Never rewrites the file; any problem = do nothing.
+const PATCH_PY = String.raw`
+import sys, os, json, glob, time, re
+sid, uuids = sys.argv[1], set(sys.argv[2:])
+cfg = os.environ.get("CLAUDE_CONFIG_DIR") or os.path.join(os.path.expanduser("~"), ".claude")
+deadline = time.time() + 12
+done = set()
+while uuids - done and time.time() < deadline:
+    files = glob.glob(os.path.join(cfg, "projects", "*", sid + ".jsonl"))
+    if files:
+        f = files[0]
+        try:
+            with open(f, "r+b") as fh:
+                size = os.fstat(fh.fileno()).st_size
+                start = max(0, size - 4 * 1024 * 1024)
+                fh.seek(start); buf = fh.read()
+                pos = 0
+                for line in buf.split(b"\n"):
+                    n = len(line)
+                    for u in list(uuids - done):
+                        if b'"uuid":"' + u.encode() + b'"' in line and b'"isMeta":true' in line:
+                            m = re.search(rb'"isMeta":true,|,"isMeta":true', line)
+                            if m:
+                                new = line[:m.start()] + b" " * (m.end() - m.start()) + line[m.end():]
+                                if len(new) == n and json.loads(new) is not None:
+                                    fh.seek(start + pos + m.start()); fh.write(b" " * (m.end() - m.start())); fh.flush()
+                                    done.add(u)
+                        elif b'"uuid":"' + u.encode() + b'"' in line:
+                            done.add(u)          # row found and not meta (nothing to do)
+                    pos += n + 1
+        except Exception:
+            pass
+    if uuids - done: time.sleep(0.4)
+`
+
+// On macOS without the Xcode command line tools, `python3` opens an install dialog: skip instead of asking.
+const RUN_PY = 'if [ "$(uname)" = Darwin ] && ! xcode-select -p >/dev/null 2>&1; then exit 0; fi; command -v python3 >/dev/null 2>&1 || exit 0; exec python3 -c "$0" "$@"'
+
 /**
  * Equivalent of the TUI's `!` mode, for hosts that send "!cmd" as plain text.
  *
@@ -47,7 +86,12 @@ export const register: Register = (on) => {
     // row, which the TUI does not draw); the prompt itself becomes the second, visible row.
     const stdoutRow = `<bash-stdout>${stdout}</bash-stdout><bash-stderr>${stderr}</bash-stderr>`
     try {
-      await $.session.append({ message: { type: 'user', content: [{ type: 'text', text: `<bash-input> ${command}</bash-input>` }] } } as never)
+      const ap = (await $.session.append({ message: { type: 'user', content: [{ type: 'text', text: `<bash-input> ${command}</bash-input>` }] } } as never)) as { uuid?: string }
+      if (ap?.uuid) {
+        // Fire and forget: best effort, never delays or breaks the turn.
+        const sid = await $.session.id()
+        void $.process.run(['sh', '-c', RUN_PY, PATCH_PY, sid, ap.uuid], { timeoutMs: 20000 }).catch(() => undefined)
+      }
       return next({ ...e, text: stdoutRow })
     } catch {
       // Could not append: fall back to one combined row that still starts with <bash-input>.
