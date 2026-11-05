@@ -42,8 +42,16 @@ export const register: Register = (on) => {
       const n = (typed.get(command) ?? 1) - 1
       if (n <= 0) typed.delete(command); else typed.set(command, n)
     }
-    // Same shape the TUI writes. It starts with <bash-input>, which hosts such as Orca recognise as a bash turn.
-    const text = `<bash-input>${command}</bash-input>\n<bash-stdout>${stdout}</bash-stdout><bash-stderr>${stderr}</bash-stderr>`
-    return next({ ...e, text })               // the model answers right after the command, like the TUI default
+    // The TUI stores two rows: <bash-input> and then <bash-stdout>. Do the same, so a session resumed in the
+    // TUI renders the output as bash output. The first row can only be appended (the host marks it as a meta
+    // row, which the TUI does not draw); the prompt itself becomes the second, visible row.
+    const stdoutRow = `<bash-stdout>${stdout}</bash-stdout><bash-stderr>${stderr}</bash-stderr>`
+    try {
+      await $.session.append({ message: { type: 'user', content: [{ type: 'text', text: `<bash-input> ${command}</bash-input>` }] } } as never)
+      return next({ ...e, text: stdoutRow })
+    } catch {
+      // Could not append: fall back to one combined row that still starts with <bash-input>.
+      return next({ ...e, text: `<bash-input>${command}</bash-input>\n${stdoutRow}` })
+    }
   }).catch(($, e, next) => (next.called ? next(e) : { drop: 'bang-shell failed to run the command; nothing was sent.' }))
 }
