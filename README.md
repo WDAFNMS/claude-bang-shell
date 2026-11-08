@@ -54,6 +54,19 @@ claude plugin marketplace remove claude-bang-shell
 Claude Code leaves an empty `enabledPlugins` / `extraKnownMarketplaces` object in `settings.json`
 and a cache copy marked `.orphaned_at` under `~/.claude/plugins/cache/`; both are harmless.
 
+## A bash-mode button for Orca
+
+Typing the leading `!` by hand works everywhere. In Orca you can also get a real **bash mode** (a `bash` button in
+the composer, a tinted box, the `!` added for you on send) with the companion Orca plugin
+[orca-bash-mode](https://github.com/WDAFNMS/orca-bash-mode):
+
+```
+orca plugin install WDAFNMS/orca-bash-mode
+```
+
+That plugin only draws the mode and sends `!command`; this one runs the command. Install both.
+给 Orca 用的配套插件 orca-bash-mode 提供输入框里的 bash 模式按钮；它只负责界面，命令仍由本插件执行。
+
 ## Security — read this
 
 `!cmd` runs **any** command you type, as you, with no permission prompt and no sandbox — the same
